@@ -3,10 +3,7 @@ sed -i s/^SELINUX=.*$/SELINUX=disabled/ /etc/selinux/config
 systemctl disable firewalld
 systemctl stop firewalld
 hostnamectl set-hostname db-vm
-yum update -y
-yum upgrade -y
 sudo yum install -y mariadb mariadb-server git
-sudo yum install zip unzip jq -y
 sudo /usr/bin/mysql_install_db --user=mysql --ldata=/var/lib/mysql
 sudo mkdir /run/mysqld
 sudo chown mysql:mysql /run/mysqld

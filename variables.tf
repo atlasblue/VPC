@@ -5,7 +5,7 @@ variable "NUTANIX_INSECURE" {}
 variable "NUTANIX_PORT" {}
 variable "NUTANIX_WAIT_TIMEOUT" {}
 
-//External VLAN
+//External Subnet
 variable "EXTERNAL_SUBNET" {
   type = string
   default = ""
