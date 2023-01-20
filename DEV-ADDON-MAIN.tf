@@ -1,4 +1,5 @@
 #################################################
+#################################################
 #              DEVELOPMENT ENVIRONMENT          #
 #################################################
 
@@ -6,8 +7,8 @@
 # CREATE VPC
 #################################################
 
-resource "nutanix_vpc" "vpc_prod" {
-  name = "VPC PROD"
+resource "nutanix_vpc" "vpc_dev" {
+  name = "VPC DEV"
   external_subnet_reference_name = [
     var.EXTERNAL_SUBNET
   ]
@@ -20,45 +21,45 @@ data "nutanix_subnet" "external_subnet" {
   subnet_name = var.EXTERNAL_SUBNET
 }
 resource "nutanix_static_routes" "static_routes" {
-  vpc_name = "VPC PROD"
+  vpc_name = "VPC DEV"
   default_route_nexthop {
     external_subnet_reference_uuid = data.nutanix_subnet.external_subnet.id
   }
-  depends_on = [nutanix_vpc.vpc_prod]
+  depends_on = [nutanix_vpc.vpc_dev]
 }
   
 #################################################
 # CREATE OVERLAY SUBNET FOR WEB TIER
 #################################################
 
-resource "nutanix_subnet" "LS-Web-Prod" {
-  name        = "LS WEB PROD"
+resource "nutanix_subnet" "LS-Web-Dev" {
+  name        = "LS WEB DEV"
   subnet_type                = "OVERLAY"
   subnet_ip                  = "192.168.1.0"
   prefix_length              = 24
   default_gateway_ip         = "192.168.1.1"
   ip_config_pool_list_ranges = ["192.168.1.10 192.168.1.20"]
   dhcp_domain_name_server_list = ["8.8.8.8"]
-  vpc_reference_uuid = nutanix_vpc.vpc_prod.metadata.uuid 
+  vpc_reference_uuid = nutanix_vpc.vpc_dev.metadata.uuid 
   depends_on = [
-    nutanix_vpc.vpc_prod
+    nutanix_vpc.vpc_dev
   ]
 }
 #################################################
 # CREATE OVERLAY SUBNET FOR DB TIER
 #################################################
 
-resource "nutanix_subnet" "LS-DB-Prod" {
-	name = "LS DB PROD"
+resource "nutanix_subnet" "LS-DB-Dev" {
+	name = "LS DB DEV"
 	subnet_type = "OVERLAY"
 	subnet_ip = "192.168.2.0"
 	prefix_length = 24
 	default_gateway_ip = "192.168.2.1"
 	ip_config_pool_list_ranges = ["192.168.2.10 192.168.2.20"]
 	dhcp_domain_name_server_list = ["8.8.8.8"]
-	vpc_reference_uuid = nutanix_vpc.vpc_prod.metadata.uuid 
+	vpc_reference_uuid = nutanix_vpc.vpc_dev.metadata.uuid 
 	depends_on = [
-		nutanix_vpc.vpc_prod
+		nutanix_vpc.vpc_dev
 	]
 }
 
@@ -72,8 +73,8 @@ resource "nutanix_image" "centos7" {
   description = "centos 7 image"
 }
 
-resource "nutanix_virtual_machine" "vm_db_prod" {
-  name                 = "DB-PROD"
+resource "nutanix_virtual_machine" "vm_db_dev" {
+  name                 = "DB-DEV"
   num_vcpus_per_socket = 1
   num_sockets          = 1
   memory_size_mib      = 2048
@@ -81,7 +82,7 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
   guest_customization_cloud_init_user_data = filebase64("./cloudinit.yaml")
 
   nic_list {
-    subnet_uuid = nutanix_subnet.LS-DB-Prod.id
+    subnet_uuid = nutanix_subnet.LS-DB-Dev.id
     ip_endpoint_list  {
             ip = "192.168.2.10"
             type = "ASSIGNED"
@@ -120,7 +121,7 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
       }
     }
   }
-  depends_on = [nutanix_subnet.LS-DB-Prod]
+  depends_on = [nutanix_subnet.LS-DB-Dev]
 }
 
 #################################################
@@ -129,9 +130,9 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
 
 resource "nutanix_floating_ip" "fip_vm_db" {
   external_subnet_reference_name = var.EXTERNAL_SUBNET
-  vm_nic_reference_uuid = nutanix_virtual_machine.vm_db_prod.nic_list[0].uuid
+  vm_nic_reference_uuid = nutanix_virtual_machine.vm_db_dev.nic_list[0].uuid
   depends_on = [
-    nutanix_virtual_machine.vm_db_prod
+    nutanix_virtual_machine.vm_db_dev
   ]
 }
 
@@ -176,15 +177,15 @@ depends_on = [nutanix_floating_ip.fip_vm_db]
 # CREATE VM WEB
 #################################################
 
-resource "nutanix_virtual_machine" "vm_web_prod" {
-  name                 = "WEB-PROD"
+resource "nutanix_virtual_machine" "vm_web_dev" {
+  name                 = "WEB-DEV"
   num_vcpus_per_socket = 1
   num_sockets          = 1
   memory_size_mib      = 2048
   cluster_uuid         = local.cluster1
   guest_customization_cloud_init_user_data = filebase64("./cloudinit.yaml")
   nic_list {
-    subnet_uuid = nutanix_subnet.LS-Web-Prod.id
+    subnet_uuid = nutanix_subnet.LS-Web-Dev.id
     ip_endpoint_list  {
             ip = "192.168.1.10"
             type = "ASSIGNED"
@@ -222,7 +223,7 @@ resource "nutanix_virtual_machine" "vm_web_prod" {
       }
     }
   }
-  depends_on = [nutanix_virtual_machine.vm_db_prod]
+  depends_on = [nutanix_virtual_machine.vm_db_dev]
 }
 
 
@@ -232,9 +233,9 @@ resource "nutanix_virtual_machine" "vm_web_prod" {
 
 resource "nutanix_floating_ip" "fip_vm_web" {
   external_subnet_reference_name = var.EXTERNAL_SUBNET
-  vm_nic_reference_uuid = nutanix_virtual_machine.vm_web_prod.nic_list[0].uuid
+  vm_nic_reference_uuid = nutanix_virtual_machine.vm_web_dev.nic_list[0].uuid
   depends_on = [
-    nutanix_virtual_machine.vm_web_prod
+    nutanix_virtual_machine.vm_web_dev
   ]
 }
 
@@ -265,8 +266,8 @@ resource "null_resource" "installweb" {
   provisioner "remote-exec" {
     inline = [
       "sudo chmod +x /fiesta-web.sh",
-      #"sed -i 's/VM-DB-IP/${nutanix_virtual_machine.vm_db_prod.nic_list_status[0].ip_endpoint_list[0].ip}/g' fiesta-web.sh",
-      "sh /fiesta-web.sh ${nutanix_virtual_machine.vm_db_prod.nic_list_status[0].ip_endpoint_list[0].ip}",
+      #"sed -i 's/VM-DB-IP/${nutanix_virtual_machine.vm_db_dev.nic_list_status[0].ip_endpoint_list[0].ip}/g' fiesta-web.sh",
+      "sh /fiesta-web.sh ${nutanix_virtual_machine.vm_db_dev.nic_list_status[0].ip_endpoint_list[0].ip}",
     ]
     
    }
@@ -274,6 +275,6 @@ resource "null_resource" "installweb" {
 depends_on = [nutanix_floating_ip.fip_vm_web]
 }
 
-output "WebServer-Production-Floating-IP" {
+output "WebServer-Development-Floating-IP" {
   value = data.nutanix_floating_ip.fip_vm_web.status[0].resources[0].floating_ip
 }
