@@ -16,10 +16,7 @@ resource "nutanix_vpc" "vpc_dev" {
 #################################################
 # CREATE DEFAULT ROUTE
 #################################################
-data "nutanix_subnet" "external_subnet" {
-  subnet_name = var.EXTERNAL_SUBNET
-}
-resource "nutanix_static_routes" "static_routes" {
+resource "nutanix_static_routes" "static_routes_dev" {
   vpc_name = "VPC DEV"
   default_route_nexthop {
     external_subnet_reference_uuid = data.nutanix_subnet.external_subnet.id
@@ -65,12 +62,6 @@ resource "nutanix_subnet" "LS-DB-Dev" {
 #################################################
 # CREATE VM DB
 #################################################
-
-resource "nutanix_image" "centos7" {
-  name = "centos7"
-  source_uri  = "http://download.nutanix.com/Calm/Centos7-Base.qcow2"
-  description = "centos 7 image"
-}
 
 resource "nutanix_virtual_machine" "vm_db_dev" {
   name                 = "DB-DEV"
@@ -127,7 +118,7 @@ resource "nutanix_virtual_machine" "vm_db_dev" {
 # CREATE FLOATING IP FOR VM DB
 #################################################
 
-resource "nutanix_floating_ip" "fip_vm_db" {
+resource "nutanix_floating_ip" "fip_vm_db_dev" {
   external_subnet_reference_name = var.EXTERNAL_SUBNET
   vm_nic_reference_uuid = nutanix_virtual_machine.vm_db_dev.nic_list[0].uuid
   depends_on = [
@@ -139,15 +130,15 @@ resource "nutanix_floating_ip" "fip_vm_db" {
 # GET FLOATING IP FOR VM DB
 #################################################
 
-data "nutanix_floating_ip" "fip_vm_db"{
-    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_db.id
+data "nutanix_floating_ip" "fip_vm_db_dev"{
+    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_db_dev.id
   }
 
 #################################################
 # DATABASE INSTALLATION AND CONFIGURATION
 #################################################
 
-resource "null_resource" "installdb" {
+resource "null_resource" "installdbdev" {
   
   connection {
         type     = "ssh"
@@ -230,7 +221,7 @@ resource "nutanix_virtual_machine" "vm_web_dev" {
 # CREATE FLOATING IP FOR VM WEB
 #################################################
 
-resource "nutanix_floating_ip" "fip_vm_web" {
+resource "nutanix_floating_ip" "fip_vm_web_dev" {
   external_subnet_reference_name = var.EXTERNAL_SUBNET
   vm_nic_reference_uuid = nutanix_virtual_machine.vm_web_dev.nic_list[0].uuid
   depends_on = [
@@ -242,15 +233,15 @@ resource "nutanix_floating_ip" "fip_vm_web" {
 # GET FLOATING IP FOR VM DB
 #################################################
 
-data "nutanix_floating_ip" "fip_vm_web"{
-    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_web.id
+data "nutanix_floating_ip" "fip_vm_web_dev"{
+    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_web_dev.id
   }
 
 #################################################
 # WEBSERVER INSTALLATION AND CONFIGURATION
 #################################################
 
-resource "null_resource" "installweb" {
+resource "null_resource" "installwebdev" {
   connection {
         type     = "ssh"
         host     = data.nutanix_floating_ip.fip_vm_web.status[0].resources[0].floating_ip
@@ -277,3 +268,4 @@ depends_on = [nutanix_floating_ip.fip_vm_web]
 output "WebServer-Development-Floating-IP" {
   value = data.nutanix_floating_ip.fip_vm_web.status[0].resources[0].floating_ip
 }
+
