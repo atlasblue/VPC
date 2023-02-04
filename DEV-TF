@@ -142,7 +142,7 @@ resource "null_resource" "installdbdev" {
   
   connection {
         type     = "ssh"
-        host     = data.nutanix_floating_ip.fip_vm_db.status[0].resources[0].floating_ip
+        host     = data.nutanix_floating_ip.fip_vm_db_dev.status[0].resources[0].floating_ip
         user     = "root"
         password = "nutanix/4u"
       }  
@@ -159,7 +159,7 @@ resource "null_resource" "installdbdev" {
     
    }
   
-depends_on = [nutanix_floating_ip.fip_vm_db]
+depends_on = [nutanix_floating_ip.fip_vm_db_dev]
 }
 
 
@@ -213,7 +213,7 @@ resource "nutanix_virtual_machine" "vm_web_dev" {
       }
     }
   }
-  depends_on = [nutanix_virtual_machine.vm_db_dev]
+  #depends_on = [nutanix_virtual_machine.vm_db_dev]
 }
 
 
@@ -244,7 +244,7 @@ data "nutanix_floating_ip" "fip_vm_web_dev"{
 resource "null_resource" "installwebdev" {
   connection {
         type     = "ssh"
-        host     = data.nutanix_floating_ip.fip_vm_web.status[0].resources[0].floating_ip
+        host     = data.nutanix_floating_ip.fip_vm_web_dev.status[0].resources[0].floating_ip
         user     = "root"
         password = "nutanix/4u"
       }  
@@ -262,10 +262,9 @@ resource "null_resource" "installwebdev" {
     
    }
   
-depends_on = [nutanix_floating_ip.fip_vm_web]
+depends_on = [nutanix_floating_ip.fip_vm_web_dev]
 }
 
 output "WebServer-Development-Floating-IP" {
-  value = data.nutanix_floating_ip.fip_vm_web.status[0].resources[0].floating_ip
+  value = data.nutanix_floating_ip.fip_vm_web_dev.status[0].resources[0].floating_ip
 }
-
