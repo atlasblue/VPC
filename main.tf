@@ -1,3 +1,7 @@
+########################################################################
+#                        PRODUCTION ENVIRONMENT                       #
+########################################################################
+
 #################################################
 # NUTANIX PROVIDER DEFINITION
 #################################################
@@ -31,6 +35,11 @@ locals {
     cluster.metadata.uuid if cluster.service_list[0] != "PRISM_CENTRAL"
   ][0]
 }
+
+#################################################
+#             PRODUCTION ENVIRONMENT            #
+#################################################
+
 
 #################################################
 # CREATE VPC
@@ -70,9 +79,7 @@ resource "nutanix_subnet" "LS-Web-Prod" {
   ip_config_pool_list_ranges = ["192.168.1.10 192.168.1.20"]
   dhcp_domain_name_server_list = ["8.8.8.8"]
   vpc_reference_uuid = nutanix_vpc.vpc_prod.metadata.uuid 
-  depends_on = [
-    nutanix_vpc.vpc_prod
-  ]
+  depends_on = [nutanix_vpc.vpc_prod]
 }
 #################################################
 # CREATE OVERLAY SUBNET FOR DB TIER
@@ -87,13 +94,13 @@ resource "nutanix_subnet" "LS-DB-Prod" {
 	ip_config_pool_list_ranges = ["192.168.2.10 192.168.2.20"]
 	dhcp_domain_name_server_list = ["8.8.8.8"]
 	vpc_reference_uuid = nutanix_vpc.vpc_prod.metadata.uuid 
-	depends_on = [
-		nutanix_vpc.vpc_prod
-	]
+	depends_on = [nutanix_vpc.vpc_prod]
 }
 
+
+
 #################################################
-# CREATE VM DB
+# CREATE IMAGE 
 #################################################
 
 resource "nutanix_image" "centos7" {
@@ -101,6 +108,10 @@ resource "nutanix_image" "centos7" {
   source_uri  = "http://download.nutanix.com/Calm/Centos7-Base.qcow2"
   description = "centos 7 image"
 }
+
+#################################################
+# CREATE VM DB
+#################################################
 
 resource "nutanix_virtual_machine" "vm_db_prod" {
   name                 = "DB-PROD"
@@ -112,8 +123,11 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
 
   nic_list {
     subnet_uuid = nutanix_subnet.LS-DB-Prod.id
+    ip_endpoint_list  {
+            ip = "192.168.2.10"
+            type = "ASSIGNED"
+        } 
   }
-
   disk_list {
     data_source_reference = {
       kind = "image"
@@ -124,7 +138,6 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
         device_index = 0
         adapter_type = "SCSI"
       }
-
       device_type = "DISK"
     }
   }
@@ -132,12 +145,9 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
     disk_size_mib   = 100000
     disk_size_bytes = 104857600000
   }
-
   disk_list {
     disk_size_bytes = 0
-
     data_source_reference = {}
-
     device_properties {
       device_type = "CDROM"
       disk_address = {
@@ -153,31 +163,28 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
 # CREATE FLOATING IP FOR VM DB
 #################################################
 
-resource "nutanix_floating_ip" "fip_vm_db" {
+resource "nutanix_floating_ip" "fip_vm_db_prod" {
   external_subnet_reference_name = var.EXTERNAL_SUBNET
   vm_nic_reference_uuid = nutanix_virtual_machine.vm_db_prod.nic_list[0].uuid
-  depends_on = [
-    nutanix_virtual_machine.vm_db_prod
-  ]
+  depends_on = [nutanix_virtual_machine.vm_db_prod]
 }
 
 #################################################
 # GET FLOATING IP FOR VM DB
 #################################################
 
-data "nutanix_floating_ip" "fip_vm_db"{
-    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_db.id
+data "nutanix_floating_ip" "fip_vm_db_prod"{
+    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_db_prod.id
   }
 
 #################################################
 # DATABASE INSTALLATION AND CONFIGURATION
 #################################################
 
-resource "null_resource" "installdb" {
-  
+resource "null_resource" "install_db_prod" {
   connection {
         type     = "ssh"
-        host     = data.nutanix_floating_ip.fip_vm_db.status[0].resources[0].floating_ip
+        host     = data.nutanix_floating_ip.fip_vm_db_prod.status[0].resources[0].floating_ip
         user     = "root"
         password = "nutanix/4u"
       }  
@@ -194,9 +201,8 @@ resource "null_resource" "installdb" {
     
    }
   
-depends_on = [nutanix_floating_ip.fip_vm_db]
+depends_on = [nutanix_floating_ip.fip_vm_db_prod]
 }
-
 
 #################################################
 # CREATE VM WEB
@@ -209,11 +215,13 @@ resource "nutanix_virtual_machine" "vm_web_prod" {
   memory_size_mib      = 2048
   cluster_uuid         = local.cluster1
   guest_customization_cloud_init_user_data = filebase64("./cloudinit.yaml")
-
   nic_list {
     subnet_uuid = nutanix_subnet.LS-Web-Prod.id
+    ip_endpoint_list  {
+            ip = "192.168.1.10"
+            type = "ASSIGNED"
+        } 
   }
-
   disk_list {
     data_source_reference = {
       kind = "image"
@@ -246,7 +254,7 @@ resource "nutanix_virtual_machine" "vm_web_prod" {
       }
     }
   }
-  depends_on = [nutanix_virtual_machine.vm_db_prod]
+  #depends_on = [nutanix_virtual_machine.vm_db_prod]
 }
 
 
@@ -254,7 +262,7 @@ resource "nutanix_virtual_machine" "vm_web_prod" {
 # CREATE FLOATING IP FOR VM WEB
 #################################################
 
-resource "nutanix_floating_ip" "fip_vm_web" {
+resource "nutanix_floating_ip" "fip_vm_web_prod" {
   external_subnet_reference_name = var.EXTERNAL_SUBNET
   vm_nic_reference_uuid = nutanix_virtual_machine.vm_web_prod.nic_list[0].uuid
   depends_on = [
@@ -266,19 +274,18 @@ resource "nutanix_floating_ip" "fip_vm_web" {
 # GET FLOATING IP FOR VM DB
 #################################################
 
-data "nutanix_floating_ip" "fip_vm_web"{
-    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_web.id
+data "nutanix_floating_ip" "fip_vm_web_prod"{
+    floating_ip_uuid = resource.nutanix_floating_ip.fip_vm_web_prod.id
   }
 
 #################################################
 # WEBSERVER INSTALLATION AND CONFIGURATION
 #################################################
 
-resource "null_resource" "installweb" {
-  
+resource "null_resource" "install_web_prod" {
   connection {
         type     = "ssh"
-        host     = data.nutanix_floating_ip.fip_vm_web.status[0].resources[0].floating_ip
+        host     = data.nutanix_floating_ip.fip_vm_web_prod.status[0].resources[0].floating_ip
         user     = "root"
         password = "nutanix/4u"
       }  
@@ -296,14 +303,9 @@ resource "null_resource" "installweb" {
     
    }
   
-depends_on = [nutanix_floating_ip.fip_vm_web]
+depends_on = [nutanix_floating_ip.fip_vm_web_prod]
 }
 
-
-
-output "WebServer-Floating-IP" {
-  value = data.nutanix_floating_ip.fip_vm_web.status[0].resources[0].floating_ip
+output "WebServer-Production-Floating-IP" {
+  value = data.nutanix_floating_ip.fip_vm_web_prod.status[0].resources[0].floating_ip
 }
-
-
-
