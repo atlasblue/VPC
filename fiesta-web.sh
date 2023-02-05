@@ -3,7 +3,6 @@ sed -i s/^SELINUX=.*$/SELINUX=disabled/ /etc/selinux/config
 systemctl disable firewalld
 systemctl stop firewalld
 hostnamectl set-hostname web-vm
-yum update -y
 yum upgrade -y
 sudo yum install -y mysql mysql-client git gcc curl wget vim gcc-c++
 curl -sL https://rpm.nodesource.com/setup_10.x | sudo bash -
