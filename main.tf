@@ -10,7 +10,7 @@ terraform {
   required_providers {
     nutanix = {
       source  = "nutanix/nutanix"
-      version = "1.7.1"
+      version = "1.9.3"
     }
   }
 }
@@ -120,7 +120,8 @@ resource "nutanix_virtual_machine" "vm_db_prod" {
   memory_size_mib      = 2048
   cluster_uuid         = local.cluster1
   guest_customization_cloud_init_user_data = filebase64("./cloudinit.yaml")
-
+  boot_type = "LEGACY"
+  boot_device_order_list = ["DISK", "CDROM"]
   nic_list {
     subnet_uuid = nutanix_subnet.LS-DB-Prod.id
     ip_endpoint_list  {
@@ -215,6 +216,8 @@ resource "nutanix_virtual_machine" "vm_web_prod" {
   memory_size_mib      = 2048
   cluster_uuid         = local.cluster1
   guest_customization_cloud_init_user_data = filebase64("./cloudinit.yaml")
+  boot_type = "LEGACY"
+  boot_device_order_list = ["DISK", "CDROM"]
   nic_list {
     subnet_uuid = nutanix_subnet.LS-Web-Prod.id
     ip_endpoint_list  {
